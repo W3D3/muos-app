@@ -478,6 +478,13 @@ class API:
                     continue
             if view == View.PLATFORMS and platform_slug != selected_platform_slug:
                 continue
+            # Extract artwork information
+            artwork = {
+                "box": rom.get("path_cover_l"),
+                "preview": rom.get("path_screenshot_s"),
+                "splash": rom.get("path_screenshot_l"),
+            }
+            
             _roms.append(
                 Rom(
                     id=rom["id"],
@@ -492,6 +499,7 @@ class API:
                     regions=rom["regions"],
                     revision=rom["revision"],
                     tags=rom["tags"],
+                    artwork=artwork,
                 )
             )
 
@@ -608,5 +616,73 @@ class API:
             except URLError:
                 self._reset_download_status(valid_host=True)
                 return
+            
+            # Download artwork after ROM is successfully downloaded
+            self._download_artwork(rom)
+            
         # End of download
         self._reset_download_status(valid_host=True, valid_credentials=True)
+
+    def _download_artwork(self, rom: Rom) -> None:
+        """Download artwork for a ROM if available and on muOS."""
+        if not self.file_system.is_muos:
+            print("Not on muOS, skipping artwork download")
+            return
+        
+        if not rom.artwork:
+            print(f"No artwork available for {rom.name}")
+            return
+        
+        # Get the base name without extension for artwork files
+        rom_base_name = os.path.splitext(rom.fs_name)[0]
+        
+        # Map artwork types to their paths and file extensions
+        artwork_types = {
+            "box": ("box", ".png"),
+            "preview": ("preview", ".png"),
+            "splash": ("splash", ".png"),
+        }
+        
+        for artwork_key, (artwork_dir, extension) in artwork_types.items():
+            artwork_path = rom.artwork.get(artwork_key)
+            if not artwork_path:
+                continue
+            
+            # Get the catalogue directory for this artwork type
+            catalogue_path = self.file_system.get_catalogue_path(
+                rom.platform_slug, artwork_dir
+            )
+            if not catalogue_path:
+                continue
+            
+            # Create the directory if it doesn't exist
+            os.makedirs(catalogue_path, exist_ok=True)
+            
+            # Destination file path
+            dest_file = os.path.join(catalogue_path, f"{rom_base_name}{extension}")
+            
+            # Build the URL for the artwork
+            artwork_url = f"{self.host}/assets/romm/resources/{artwork_path}"
+            
+            try:
+                print(f"Downloading {artwork_key} artwork: {artwork_url}")
+                request = Request(artwork_url, headers=self.headers)
+                
+                if request.type not in ("http", "https"):
+                    print(f"Invalid URL scheme for artwork: {artwork_url}")
+                    continue
+                
+                with urlopen(request, timeout=60) as response:  # trunk-ignore(bandit/B310)
+                    with open(dest_file, "wb") as out_file:
+                        out_file.write(response.read())
+                print(f"Downloaded {artwork_key} to {dest_file}")
+                
+            except HTTPError as e:
+                print(f"Failed to download {artwork_key} artwork: HTTP {e.code}")
+                continue
+            except URLError as e:
+                print(f"Failed to download {artwork_key} artwork: {e}")
+                continue
+            except Exception as e:
+                print(f"Unexpected error downloading {artwork_key} artwork: {e}")
+                continue
