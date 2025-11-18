@@ -624,7 +624,10 @@ class API:
         self._reset_download_status(valid_host=True, valid_credentials=True)
 
     def _download_artwork(self, rom: Rom) -> None:
-        """Download artwork for a ROM if available and on muOS."""
+        """
+        Download artwork for a ROM if available and on muOS.
+        Downloads box art, preview, and splash images from RomM server.
+        """
         if not self.file_system.is_muos:
             print("Not on muOS, skipping artwork download")
             return
