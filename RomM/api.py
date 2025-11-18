@@ -4,6 +4,7 @@ import math
 import os
 import re
 import zipfile
+from io import BytesIO
 from typing import Tuple
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote
@@ -639,14 +640,14 @@ class API:
         # Get the base name without extension for artwork files
         rom_base_name = os.path.splitext(rom.fs_name)[0]
         
-        # Map artwork types to their paths and file extensions
+        # Map artwork types to their directories (muOS requires .png files)
         artwork_types = {
-            "box": ("box", ".png"),
-            "preview": ("preview", ".png"),
-            "splash": ("splash", ".png"),
+            "box": "box",
+            "preview": "preview",
+            "splash": "splash",
         }
         
-        for artwork_key, (artwork_dir, extension) in artwork_types.items():
+        for artwork_key, artwork_dir in artwork_types.items():
             artwork_path = rom.artwork.get(artwork_key)
             if not artwork_path:
                 continue
@@ -661,8 +662,8 @@ class API:
             # Create the directory if it doesn't exist
             os.makedirs(catalogue_path, exist_ok=True)
             
-            # Destination file path
-            dest_file = os.path.join(catalogue_path, f"{rom_base_name}{extension}")
+            # Destination file path (muOS expects .png files)
+            dest_file = os.path.join(catalogue_path, f"{rom_base_name}.png")
             
             # Build the URL for the artwork
             artwork_url = f"{self.host}/assets/romm/resources/{artwork_path}"
@@ -676,9 +677,22 @@ class API:
                     continue
                 
                 with urlopen(request, timeout=60) as response:  # trunk-ignore(bandit/B310)
+                    image_data = response.read()
+                
+                # Save the downloaded image, converting to PNG if necessary
+                try:
+                    image = Image.open(BytesIO(image_data))
+                    # Convert to RGB if necessary (e.g., for JPEG or transparency issues)
+                    if image.mode not in ("RGB", "RGBA"):
+                        image = image.convert("RGB")
+                    image.save(dest_file, "PNG")
+                    print(f"Downloaded and converted {artwork_key} to {dest_file}")
+                except Exception as img_error:
+                    # If image processing fails, save the raw data
+                    print(f"Could not process image, saving raw data: {img_error}")
                     with open(dest_file, "wb") as out_file:
-                        out_file.write(response.read())
-                print(f"Downloaded {artwork_key} to {dest_file}")
+                        out_file.write(image_data)
+                    print(f"Downloaded {artwork_key} to {dest_file}")
                 
             except HTTPError as e:
                 print(f"Failed to download {artwork_key} artwork: HTTP {e.code}")
