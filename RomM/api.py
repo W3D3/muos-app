@@ -38,6 +38,12 @@ class API:
         self._include_collections = set(self._getenv_list("INCLUDE_COLLECTIONS"))
         self._exclude_collections = set(self._getenv_list("EXCLUDE_COLLECTIONS"))
         self._collection_type = os.getenv("COLLECTION_TYPE", "collection")
+        
+        # Art downloading configuration
+        self._download_art = os.getenv("DOWNLOAD_ART", "true").lower() == "true"
+        self._download_art_box = os.getenv("DOWNLOAD_ART_BOX", "true").lower() == "true"
+        self._download_art_preview = os.getenv("DOWNLOAD_ART_PREVIEW", "true").lower() == "true"
+        self._download_art_splash = os.getenv("DOWNLOAD_ART_SPLASH", "true").lower() == "true"
 
         if self.username and self.password:
             credentials = f"{self.username}:{self.password}"
@@ -630,6 +636,11 @@ class API:
         Download artwork for a ROM if available and on muOS.
         Downloads box art, preview, and splash images from RomM server.
         """
+        # Check if art downloading is enabled globally
+        if not self._download_art:
+            print("Art downloading is disabled via DOWNLOAD_ART environment variable")
+            return
+        
         if not self.file_system.is_muos:
             print("Not on muOS, skipping artwork download")
             return
@@ -641,14 +652,19 @@ class API:
         # Get the base name without extension for artwork files
         rom_base_name = os.path.splitext(rom.fs_name)[0]
         
-        # Map artwork types to their directories (muOS requires .png files)
+        # Map artwork types to their directories and configuration flags (muOS requires .png files)
         artwork_types = {
-            "box": "box",
-            "preview": "preview",
-            "splash": "splash",
+            "box": ("box", self._download_art_box),
+            "preview": ("preview", self._download_art_preview),
+            "splash": ("splash", self._download_art_splash),
         }
         
-        for artwork_key, artwork_dir in artwork_types.items():
+        for artwork_key, (artwork_dir, enabled) in artwork_types.items():
+            # Skip if this artwork type is disabled
+            if not enabled:
+                print(f"Skipping {artwork_key} artwork (disabled via DOWNLOAD_ART_{artwork_key.upper()} environment variable)")
+                continue
+            
             artwork_path = rom.artwork.get(artwork_key)
             if not artwork_path:
                 continue
