@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - "[0-9]+.[0-9]+.[0-9]+*"
+    branches:
+      - main
 
 permissions:
   id-token: write
@@ -23,7 +25,16 @@ jobs:
 
       - name: Set version
         run: |
-          VERSION=${GITHUB_REF#refs/tags/}
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            # This is a tag build - use the tag as version
+            VERSION=${GITHUB_REF#refs/tags/}
+            echo "IS_RELEASE=true" >> $GITHUB_ENV
+          else
+            # This is a main branch build - create dev version with commit SHA
+            SHORT_SHA=$(git rev-parse --short HEAD)
+            VERSION="dev-${SHORT_SHA}"
+            echo "IS_RELEASE=false" >> $GITHUB_ENV
+          fi
           echo "version=$VERSION" >> $GITHUB_ENV
           sed -i "s/<version>/$VERSION/" RomM/__version__.py
 
@@ -43,5 +54,9 @@ jobs:
           files: |
             .dist/RomM\ muOS\ ${{ env.version }}.muxapp
             .dist/RomM\ PortMaster\ ${{ env.version }}.zip
+          tag_name: ${{ env.version }}
+          name: ${{ env.IS_RELEASE == 'true' && format('Release {0}', env.version) || format('Dev Build {0}', env.version) }}
+          prerelease: ${{ env.IS_RELEASE != 'true' }}
+          body: ${{ env.IS_RELEASE == 'true' && '' || format('Automated development build from commit {0}', github.sha) }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
