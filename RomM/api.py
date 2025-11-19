@@ -41,9 +41,10 @@ class API:
         
         # Art downloading configuration
         self._download_art = os.getenv("DOWNLOAD_ART", "true").lower() == "true"
-        self._download_art_box = os.getenv("DOWNLOAD_ART_BOX", "true").lower() == "true"
-        self._download_art_preview = os.getenv("DOWNLOAD_ART_PREVIEW", "true").lower() == "true"
-        self._download_art_splash = os.getenv("DOWNLOAD_ART_SPLASH", "true").lower() == "true"
+        # Art field names to download for each type (empty string means disabled)
+        self._download_art_box = os.getenv("DOWNLOAD_ART_BOX", "miximage")
+        self._download_art_preview = os.getenv("DOWNLOAD_ART_PREVIEW", "screenshot")
+        self._download_art_splash = os.getenv("DOWNLOAD_ART_SPLASH", "title_screen")
 
         if self.username and self.password:
             credentials = f"{self.username}:{self.password}"
@@ -485,13 +486,18 @@ class API:
                     continue
             if view == View.PLATFORMS and platform_slug != selected_platform_slug:
                 continue
-            # Extract artwork information (RomM 4.4+ media types)
-            # Prefer miximage for box art, fallback to box2d (normal cover)
-            artwork = {
-                "box": rom.get("miximage") or rom.get("box2d") or rom.get("path_cover_l"),
-                "preview": rom.get("screenshot") or rom.get("path_screenshot_s"),
-                "splash": rom.get("title_screen") or rom.get("path_screenshot_l"),
-            }
+            # Extract all artwork information from RomM
+            # Store all artwork fields so users can choose which ones to download
+            artwork = {}
+            # Common artwork field names in RomM
+            artwork_fields = [
+                "miximage", "box3d", "box2d", "path_cover_l", "path_cover_s",
+                "screenshot", "path_screenshot_s", "path_screenshot_l",
+                "title_screen", "wheel", "marquee", "fanart", "banner"
+            ]
+            for field in artwork_fields:
+                if rom.get(field):
+                    artwork[field] = rom.get(field)
             
             _roms.append(
                 Rom(
@@ -634,7 +640,7 @@ class API:
     def _download_artwork(self, rom: Rom) -> None:
         """
         Download artwork for a ROM if available and on muOS.
-        Downloads box art, preview, and splash images from RomM server.
+        Downloads artwork based on configured RomM field names.
         """
         # Check if art downloading is enabled globally
         if not self._download_art:
@@ -652,21 +658,25 @@ class API:
         # Get the base name without extension for artwork files
         rom_base_name = os.path.splitext(rom.fs_name)[0]
         
-        # Map artwork types to their directories and configuration flags (muOS requires .png files)
+        # Map artwork types to their directories and configured RomM field names
+        # The value is the RomM field name to look for (e.g., "miximage", "box3d", "screenshot")
+        # Empty string means disabled
         artwork_types = {
             "box": ("box", self._download_art_box),
             "preview": ("preview", self._download_art_preview),
             "splash": ("splash", self._download_art_splash),
         }
         
-        for artwork_key, (artwork_dir, enabled) in artwork_types.items():
-            # Skip if this artwork type is disabled
-            if not enabled:
-                print(f"Skipping {artwork_key} artwork (disabled via DOWNLOAD_ART_{artwork_key.upper()} environment variable)")
+        for artwork_key, (artwork_dir, romm_field) in artwork_types.items():
+            # Skip if this artwork type is disabled (empty string)
+            if not romm_field:
+                print(f"Skipping {artwork_key} artwork (DOWNLOAD_ART_{artwork_key.upper()} not set)")
                 continue
             
-            artwork_path = rom.artwork.get(artwork_key)
+            # Get the artwork path from the ROM data using the configured field name
+            artwork_path = rom.artwork.get(romm_field)
             if not artwork_path:
+                print(f"No '{romm_field}' artwork available for {rom.name} (configured for {artwork_key})")
                 continue
             
             # Get the catalogue directory for this artwork type
@@ -686,7 +696,7 @@ class API:
             artwork_url = f"{self.host}/assets/romm/resources/{artwork_path}"
             
             try:
-                print(f"Downloading {artwork_key} artwork: {artwork_url}")
+                print(f"Downloading {artwork_key} artwork from '{romm_field}': {artwork_url}")
                 request = Request(artwork_url, headers=self.headers)
                 
                 if request.type not in ("http", "https"):
