@@ -479,11 +479,12 @@ class API:
                     continue
             if view == View.PLATFORMS and platform_slug != selected_platform_slug:
                 continue
-            # Extract artwork information
+            # Extract artwork information (RomM 4.4+ media types)
+            # Prefer miximage for box art, fallback to box2d (normal cover)
             artwork = {
-                "box": rom.get("path_cover_l"),
-                "preview": rom.get("path_screenshot_s"),
-                "splash": rom.get("path_screenshot_l"),
+                "box": rom.get("miximage") or rom.get("box2d") or rom.get("path_cover_l"),
+                "preview": rom.get("screenshot") or rom.get("path_screenshot_s"),
+                "splash": rom.get("title_screen") or rom.get("path_screenshot_l"),
             }
             
             _roms.append(
