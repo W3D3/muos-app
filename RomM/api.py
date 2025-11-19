@@ -489,25 +489,33 @@ class API:
             # Extract all artwork information from RomM
             # Store all artwork fields so users can choose which ones to download
             artwork = {}
-            # Common artwork field names in RomM
-            artwork_fields = [
-                "miximage",
-                "box3d",
-                "box2d",
-                "path_cover_l",
-                "path_cover_s",
-                "screenshot",
-                "path_screenshot_s",
-                "path_screenshot_l",
-                "title_screen",
-                "wheel",
-                "marquee",
-                "fanart",
-                "banner",
-            ]
-            for field in artwork_fields:
-                if rom.get(field):
-                    artwork[field] = rom.get(field)
+            # Common artwork field names in RomM (from ss_metadata)
+            # These fields are in ss_metadata with _path suffix
+            ss_metadata = rom.get("ss_metadata", {})
+            if ss_metadata:
+                artwork_fields = [
+                    "miximage",
+                    "box3d",
+                    "box2d",
+                    "box2d_side",
+                    "box2d_back",
+                    "fullbox",
+                    "screenshot",
+                    "title_screen",
+                    "wheel",
+                    "marquee",
+                    "fanart",
+                    "banner",
+                    "physical",
+                    "bezel",
+                    "logo",
+                    "steamgrid",
+                ]
+                for field in artwork_fields:
+                    # Look for the field with _path suffix in ss_metadata
+                    path_field = f"{field}_path"
+                    if ss_metadata.get(path_field):
+                        artwork[field] = ss_metadata.get(path_field)
 
             _roms.append(
                 Rom(
