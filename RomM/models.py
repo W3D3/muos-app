@@ -15,6 +15,7 @@ Rom = namedtuple(
         "regions",
         "revision",
         "tags",
+        "artwork",
     ],
 )
 Collection = namedtuple("Collection", ["id", "name", "rom_count", "virtual"])

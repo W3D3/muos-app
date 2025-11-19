@@ -895,3 +895,30 @@ class RomM:
                 [storage_path, full_path]
             ) == storage_path and os.path.isfile(full_path):
                 os.remove(full_path)
+        
+        # Remove artwork files if on muOS
+        self._remove_artwork_files(rom)
+
+    def _remove_artwork_files(self, rom: Rom):
+        """Remove artwork files associated with a ROM."""
+        if not self.fs.is_muos:
+            return
+        
+        rom_base_name = os.path.splitext(rom.fs_name)[0]
+        artwork_types = ["box", "preview", "splash", "text"]
+        
+        for artwork_type in artwork_types:
+            catalogue_path = self.fs.get_catalogue_path(rom.platform_slug, artwork_type)
+            if not catalogue_path:
+                continue
+            
+            # Determine file extension
+            extension = ".txt" if artwork_type == "text" else ".png"
+            artwork_file = os.path.join(catalogue_path, f"{rom_base_name}{extension}")
+            
+            if os.path.isfile(artwork_file):
+                try:
+                    os.remove(artwork_file)
+                    print(f"Removed {artwork_type} artwork: {artwork_file}")
+                except OSError as e:
+                    print(f"Failed to remove {artwork_type} artwork: {e}")

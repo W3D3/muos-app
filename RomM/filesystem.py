@@ -145,3 +145,30 @@ class Filesystem:
             rom.fs_name if not rom.multi else f"{rom.fs_name}.m3u",
         )
         return os.path.exists(rom_path)
+
+    def get_catalogue_base_path(self) -> Optional[str]:
+        """Return the base catalogue path for artwork storage (muOS only)."""
+        if not self.is_muos:
+            return None
+        
+        if self._current_sd == 2 and self._sd2_roms_storage_path:
+            # Assuming SD2 is /mnt/sdcard/ROMS, catalogue is at /mnt/sdcard/MUOS/info/catalogue
+            return "/mnt/sdcard/MUOS/info/catalogue"
+        
+        # SD1 is /mnt/mmc/ROMS, catalogue is at /mnt/mmc/MUOS/info/catalogue
+        return "/mnt/mmc/MUOS/info/catalogue"
+
+    def get_catalogue_path(self, platform: str, artwork_type: str) -> Optional[str]:
+        """
+        Return the catalogue path for a specific platform and artwork type.
+        artwork_type should be one of: 'box', 'preview', 'splash', 'text'
+        Returns None if not on muOS.
+        """
+        base_path = self.get_catalogue_base_path()
+        if not base_path:
+            return None
+        
+        # Get the platform directory name using the same mapping as ROMs
+        platform_dir = self._get_platform_storage_dir_from_mapping(platform)
+        
+        return os.path.join(base_path, platform_dir, artwork_type)
