@@ -719,9 +719,8 @@ class API:
                     print(f"Invalid URL scheme for artwork: {artwork_url}")
                     continue
 
-                with urlopen(
-                    request, timeout=60
-                ) as response:  # trunk-ignore(bandit/B310)
+                # trunk-ignore(bandit/B310)
+                with urlopen(request, timeout=60) as response:
                     image_data = response.read()
 
                 # Save the downloaded image, converting to PNG if necessary
