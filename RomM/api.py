@@ -7,7 +7,7 @@ import zipfile
 from io import BytesIO
 from typing import Tuple
 from urllib.error import HTTPError, URLError
-from urllib.parse import quote
+from urllib.parse import quote, urljoin
 from urllib.request import Request, urlopen
 
 import platform_maps
@@ -715,7 +715,9 @@ class API:
             dest_file = os.path.join(catalogue_path, f"{rom_base_name}.png")
 
             # Build the URL for the artwork
-            artwork_url = f"{self.host}/assets/romm/resources/{artwork_path}"
+            # Strip leading slash from artwork_path to ensure proper URL joining
+            artwork_path_clean = artwork_path.lstrip("/")
+            artwork_url = urljoin(f"{self.host}/", f"assets/romm/resources/{artwork_path_clean}")
 
             try:
                 print(
