@@ -717,7 +717,9 @@ class API:
             # Build the URL for the artwork
             # Strip leading slash from artwork_path to ensure proper URL joining
             artwork_path_clean = artwork_path.lstrip("/")
-            artwork_url = urljoin(f"{self.host}/", f"assets/romm/resources/{artwork_path_clean}")
+            artwork_url = urljoin(
+                f"{self.host}/", f"assets/romm/resources/{artwork_path_clean}"
+            )
 
             try:
                 print(
