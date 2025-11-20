@@ -4,6 +4,7 @@ Integration test for artwork downloading functionality.
 This test validates that the artwork extraction logic correctly handles
 the API response structure with ss_metadata.
 """
+
 import os
 import sys
 import unittest
@@ -48,7 +49,7 @@ class TestArtworkExtraction(unittest.TestCase):
                 "logo_path": None,
                 "screenshot_path": "roms/1/4/screenshot/screenshot.png",
                 "title_screen_path": "roms/1/4/title_screen/title_screen.png",
-            }
+            },
         }
 
     def test_artwork_extraction_from_ss_metadata(self):
@@ -115,7 +116,8 @@ class TestArtworkExtraction(unittest.TestCase):
         artwork_path_clean = artwork_path.lstrip("/")
         url = urljoin(f"{host}/", f"assets/romm/resources/{artwork_path_clean}")
         self.assertEqual(
-            url, "http://localhost:8080/assets/romm/resources/roms/1/4/miximage/miximage.png"
+            url,
+            "http://localhost:8080/assets/romm/resources/roms/1/4/miximage/miximage.png",
         )
 
         # Test with path with leading slash
@@ -123,7 +125,8 @@ class TestArtworkExtraction(unittest.TestCase):
         artwork_path_clean = artwork_path.lstrip("/")
         url = urljoin(f"{host}/", f"assets/romm/resources/{artwork_path_clean}")
         self.assertEqual(
-            url, "http://localhost:8080/assets/romm/resources/roms/1/4/miximage/miximage.png"
+            url,
+            "http://localhost:8080/assets/romm/resources/roms/1/4/miximage/miximage.png",
         )
 
         # Verify no double slashes in URL
