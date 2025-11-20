@@ -25,6 +25,7 @@ class API:
     _roms_endpoint = "api/roms"
     _user_me_endpoint = "api/users/me"
     _user_profile_picture_url = "assets/romm/assets"
+    _saves_endpoint = "api/saves"
 
     def __init__(self):
         self.status = Status()
@@ -759,3 +760,105 @@ class API:
             except Exception as e:
                 print(f"Unexpected error downloading {artwork_key} artwork: {e}")
                 continue
+
+    def download_saves(self, rom: Rom) -> bool:
+        """
+        Download save and state files for a ROM from RomM server.
+        Returns True if at least one save file was downloaded successfully.
+        """
+        if not self.file_system.is_muos:
+            print("Not on muOS, skipping save download")
+            return False
+
+        try:
+            # Fetch the list of saves for this ROM
+            request = Request(
+                f"{self.host}/{self._saves_endpoint}?rom_id={rom.id}",
+                headers=self.headers,
+            )
+        except ValueError as e:
+            print(f"Invalid URL for saves: {e}")
+            return False
+
+        try:
+            if request.type not in ("http", "https"):
+                print("Invalid URL scheme for saves")
+                return False
+            
+            response = urlopen(request, timeout=60)  # trunk-ignore(bandit/B310)
+            saves_data = json.loads(response.read().decode("utf-8"))
+        except HTTPError as e:
+            print(f"Failed to fetch saves list: HTTP {e.code}")
+            return False
+        except URLError as e:
+            print(f"Failed to fetch saves list: {e}")
+            return False
+        except Exception as e:
+            print(f"Unexpected error fetching saves list: {e}")
+            return False
+
+        if not saves_data:
+            print(f"No saves found for {rom.name}")
+            return False
+
+        downloaded_count = 0
+        
+        # Process each save file
+        for save in saves_data:
+            save_id = save.get("id")
+            save_filename = save.get("file_name", "")
+            save_type = save.get("save_type", "file")  # "file" or "state"
+            
+            if not save_id or not save_filename:
+                continue
+
+            # Determine destination path based on save type
+            if save_type == "state":
+                dest_dir = self.file_system.get_save_state_path(rom.platform_slug)
+            else:
+                dest_dir = self.file_system.get_save_file_path(rom.platform_slug)
+            
+            if not dest_dir:
+                continue
+
+            # Create directory if it doesn't exist
+            os.makedirs(dest_dir, exist_ok=True)
+            
+            # Sanitize filename
+            safe_filename = self._sanitize_filename(save_filename)
+            dest_path = os.path.join(dest_dir, safe_filename)
+
+            # Download the save file
+            try:
+                download_url = f"{self.host}/{self._saves_endpoint}/{save_id}/content"
+                print(f"Downloading {save_type} save: {save_filename}")
+                
+                download_request = Request(download_url, headers=self.headers)
+                
+                if download_request.type not in ("http", "https"):
+                    print(f"Invalid URL scheme for save download: {download_url}")
+                    continue
+                
+                with urlopen(download_request, timeout=60) as dl_response:  # trunk-ignore(bandit/B310)
+                    with open(dest_path, "wb") as out_file:
+                        out_file.write(dl_response.read())
+                
+                print(f"Downloaded {save_type} save to {dest_path}")
+                downloaded_count += 1
+                
+            except HTTPError as e:
+                print(f"Failed to download save {save_filename}: HTTP {e.code}")
+                continue
+            except URLError as e:
+                print(f"Failed to download save {save_filename}: {e}")
+                continue
+            except Exception as e:
+                print(f"Unexpected error downloading save {save_filename}: {e}")
+                continue
+
+        if downloaded_count > 0:
+            print(f"Successfully downloaded {downloaded_count} save(s) for {rom.name}")
+            return True
+        else:
+            print(f"No saves were downloaded for {rom.name}")
+            return False

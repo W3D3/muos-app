@@ -172,3 +172,45 @@ class Filesystem:
         platform_dir = self._get_platform_storage_dir_from_mapping(platform)
         
         return os.path.join(base_path, platform_dir, artwork_type)
+
+    def get_save_base_path(self) -> Optional[str]:
+        """Return the base save path for save/state storage (muOS only)."""
+        if not self.is_muos:
+            return None
+        
+        if self._current_sd == 2 and self._sd2_roms_storage_path:
+            # SD2 is /mnt/sdcard, save base is at /mnt/sdcard/MUOS/save
+            return "/mnt/sdcard/MUOS/save"
+        
+        # SD1 is /mnt/mmc, save base is at /mnt/mmc/MUOS/save
+        return "/mnt/mmc/MUOS/save"
+
+    def get_save_file_path(self, platform: str) -> Optional[str]:
+        """
+        Return the save file path for a specific platform (muOS only).
+        Save files go to /MUOS/save/file/{platform}/
+        Returns None if not on muOS.
+        """
+        base_path = self.get_save_base_path()
+        if not base_path:
+            return None
+        
+        # Get the platform directory name using the same mapping as ROMs
+        platform_dir = self._get_platform_storage_dir_from_mapping(platform)
+        
+        return os.path.join(base_path, "file", platform_dir)
+
+    def get_save_state_path(self, platform: str) -> Optional[str]:
+        """
+        Return the save state path for a specific platform (muOS only).
+        Save states go to /MUOS/save/state/{platform}/
+        Returns None if not on muOS.
+        """
+        base_path = self.get_save_base_path()
+        if not base_path:
+            return None
+        
+        # Get the platform directory name using the same mapping as ROMs
+        platform_dir = self._get_platform_storage_dir_from_mapping(platform)
+        
+        return os.path.join(base_path, "state", platform_dir)

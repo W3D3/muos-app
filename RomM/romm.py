@@ -605,11 +605,21 @@ class RomM:
                     ),
                 ]
 
+                # Add download saves option (only on muOS)
+                if self.fs.is_muos:
+                    self.contextual_menu_options.append(
+                        (
+                            f"{glyphs.cloud_sync} Download saves",
+                            len(self.contextual_menu_options),
+                            lambda: self._download_saves_for_rom(selected_rom),
+                        ),
+                    )
+
                 if self.fs.is_rom_in_device(selected_rom):
                     self.contextual_menu_options.append(
                         (
                             f"{glyphs.delete} Remove from device",
-                            1,
+                            len(self.contextual_menu_options),
                             lambda: self._remove_rom_files(selected_rom),
                         ),
                     )
@@ -898,6 +908,22 @@ class RomM:
         
         # Remove artwork files if on muOS
         self._remove_artwork_files(rom)
+
+    def _download_saves_for_rom(self, rom: Rom):
+        """Download save and state files for a ROM."""
+        print(f"Downloading saves for {rom.name}...")
+        success = self.api.download_saves(rom)
+        
+        if success:
+            self.ui.draw_log(
+                text_line_1=f"Successfully downloaded saves for {rom.name}",
+                text_line_2="Saves are now available on your device"
+            )
+        else:
+            self.ui.draw_log(
+                text_line_1=f"No saves found for {rom.name}",
+                text_line_2="or failed to download"
+            )
 
     def _remove_artwork_files(self, rom: Rom):
         """Remove artwork files associated with a ROM."""
