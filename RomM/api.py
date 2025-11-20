@@ -772,8 +772,10 @@ class API:
 
         try:
             # Fetch the list of saves for this ROM
+            # URL encode the rom_id parameter for security
+            rom_id_encoded = quote(str(rom.id))
             request = Request(
-                f"{self.host}/{self._saves_endpoint}?rom_id={rom.id}",
+                f"{self.host}/{self._saves_endpoint}?rom_id={rom_id_encoded}",
                 headers=self.headers,
             )
         except ValueError as e:
@@ -830,7 +832,9 @@ class API:
 
             # Download the save file
             try:
-                download_url = f"{self.host}/{self._saves_endpoint}/{save_id}/content"
+                # URL encode the save_id parameter for security
+                save_id_encoded = quote(str(save_id))
+                download_url = f"{self.host}/{self._saves_endpoint}/{save_id_encoded}/content"
                 print(f"Downloading {save_type} save: {save_filename}")
                 
                 download_request = Request(download_url, headers=self.headers)
